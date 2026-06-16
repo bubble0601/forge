@@ -290,7 +290,10 @@ public class CardTranslation {
 
     public static void buildOracleMapping(String faceName, String oracleText, String variantName) {
         String translationKey = faceName;
-        if(variantName != null)
+        // CardFactory.readCardFace passes variantName="" (NO_FUNCTIONAL_VARIANT) for cards that
+        // have functional variants but the active one is the default. The empty-but-non-null check
+        // here treats that as no variant, which keeps the key aligned with cardnames-*.txt entries.
+        if(variantName != null && !variantName.isEmpty())
             translationKey = faceName + " $" + variantName;
         if (!needsTranslation() || oracleMappings.containsKey(translationKey)) return;
         String translatedText = getTranslatedOracle(translationKey);
@@ -311,6 +314,41 @@ public class CardTranslation {
                 toracle = toracle.replaceAll("\\(.*\\)", "");
             }
             mapping.add(Pair.of(toracle, ttranslated));
+            // Some keyword segments are written like "Flying, double strike" in Oracle and
+            // "飛行、二段攻撃" in the translation. Card.keywordsToText prints keywords one per
+            // line at runtime, so a single-keyword lookup like "Double strike" won't Levenshtein-
+            // match the combined left side. Register the individual pairs too so per-keyword
+            // lookups can hit directly.
+            if (toracle.contains(", ") && ttranslated.contains("、")) {
+                String[] enKws = toracle.split(", ");
+                String[] jaKws = ttranslated.split("、");
+                if (enKws.length == jaKws.length) {
+                    for (int j = 0; j < enKws.length; j++) {
+                        String e = enKws[j].trim();
+                        String t = jaKws[j].trim();
+                        if (!e.isEmpty() && !t.isEmpty()) {
+                            mapping.add(Pair.of(e, t));
+                        }
+                    }
+                }
+            }
+        }
+        // Some cards (e.g. Heartless Pillage) have multi-segment Oracle but a single concatenated
+        // SpellDescription, so the runtime descText is the segments joined on one line. Add a
+        // concatenated pair as a fallback so Levenshtein can still match the whole string.
+        if (mapping.size() > 1 && splitOracleText.length > 1 && splitTranslatedText.length > 1) {
+            StringBuilder concatEn = new StringBuilder();
+            StringBuilder concatJa = new StringBuilder();
+            for (int i = 0; i < splitOracleText.length && i < splitTranslatedText.length; i++) {
+                String e = replaceCardName("en-US", faceName, splitOracleText[i]);
+                if (!e.startsWith("(")) e = e.replaceAll("\\(.*\\)", "");
+                String t = replaceCardName(languageSelected, translatedName, splitTranslatedText[i]);
+                if (concatEn.length() > 0) concatEn.append(' ');
+                if (concatJa.length() > 0) concatJa.append(' ');
+                concatEn.append(e.trim());
+                concatJa.append(t.trim());
+            }
+            mapping.add(Pair.of(concatEn.toString(), concatJa.toString()));
         }
         oracleMappings.put(translationKey, mapping);
     }
