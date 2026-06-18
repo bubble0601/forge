@@ -14,10 +14,11 @@ public class SimulationController {
     private static boolean DEBUG = false;
     private static final int DEFAULT_MAX_DEPTH = 3;
 
-    // [mtg-local-patches] 思考時間上限。深さ (maxDepth) は upstream がコンストラクタ引数で
+    // [mtg-local-patches] 思考時間上限。探索深さ (maxDepth) は upstream がコンストラクタ引数で
     // 外出ししたのでそちらに任せ、ここでは「N ミリ秒で打ち切って今までの bestSa を採用する」
-    // 安全弁だけを足す。シングル AI vs ヒトしか動かさない前提なので static で十分。
-    private static final long MAX_THINK_MS = Long.getLong("forge.ai.simMaxMillis", 30_000L);
+    // 安全弁だけを足す。深い探索でも数分凍結しないようにするのが主目的。
+    // シングル AI vs ヒトしか動かさない前提なので static で十分。
+    private static final long MAX_THINK_MS = Long.getLong("forge.ai.simMaxMillis", 60_000L);
 
     /** chooseSpellAbilityToPlayImpl が候補評価ループの開始時刻に設定する deadline。0 で無効。 */
     private long deadlineMs;
