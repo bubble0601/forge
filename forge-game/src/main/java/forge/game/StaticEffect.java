@@ -339,7 +339,17 @@ public class StaticEffect {
     }
 
     public void removeMapped(IEntityMap map) {
-        makeMappedCopy(map).remove(Maps.newHashMap());
+        // [mtg-local-patches] Skip if the source card can't be remapped into the destination game
+        // (e.g., AI's GameCopier built a snapshot where the source already left the battlefield,
+        // but the StaticEffect lingered in origGame.getStaticEffects()). The destination game
+        // doesn't contain the effect either, so the remove is a no-op and crashing the simulation
+        // is worse than skipping it. Observed for Multiversal Passage during simulation AI's
+        // game-tree search; the underlying lifecycle bug is upstream.
+        try {
+            makeMappedCopy(map).remove(Maps.newHashMap());
+        } catch (final RuntimeException e) {
+            System.out.println("[StaticEffect.removeMapped] skipped due to unmappable source: " + e.getMessage());
+        }
     }
 
 }
