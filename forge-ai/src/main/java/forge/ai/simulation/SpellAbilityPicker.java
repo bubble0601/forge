@@ -164,11 +164,19 @@ public class SpellAbilityPicker {
 
     private SpellAbility chooseSpellAbilityToPlayImpl(SimulationController controller, List<SpellAbility> candidateSAs, Score origGameScore, PhaseType phase) {
         long startTime = System.currentTimeMillis();
+        // [mtg-local-patches] 思考時間 deadline を開始。SimulationController.shouldRecurse および
+        // 下のループ手前で確認し、超過したら現時点の bestSa で確定させる (freeze 救済)。
+        controller.startDeadline();
 
         SpellAbility bestSa = null;
         Score bestSaValue = origGameScore;
         print("Evaluating... (orig score = " + origGameScore +  ")");
         for (int i = 0; i < candidateSAs.size(); i++) {
+            if (controller.isDeadlineExceeded()) {
+                System.out.println("[sim-timeout] aborting after " + i + "/" + candidateSAs.size()
+                        + " candidates (limit=" + SimulationController.getMaxThinkMs() + "ms)");
+                break;
+            }
             Score value = evaluateSa(controller, phase, candidateSAs, i);
             if (value.value > bestSaValue.value) {
                 bestSaValue = value;

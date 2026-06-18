@@ -14,6 +14,18 @@ public class SimulationController {
     private static boolean DEBUG = false;
     private static final int DEFAULT_MAX_DEPTH = 3;
 
+    // [mtg-local-patches] 思考時間上限。深さ (maxDepth) は upstream がコンストラクタ引数で
+    // 外出ししたのでそちらに任せ、ここでは「N ミリ秒で打ち切って今までの bestSa を採用する」
+    // 安全弁だけを足す。シングル AI vs ヒトしか動かさない前提なので static で十分。
+    private static final long MAX_THINK_MS = Long.getLong("forge.ai.simMaxMillis", 30_000L);
+
+    /** chooseSpellAbilityToPlayImpl が候補評価ループの開始時刻に設定する deadline。0 で無効。 */
+    private long deadlineMs;
+
+    public void startDeadline() { deadlineMs = MAX_THINK_MS > 0 ? System.currentTimeMillis() + MAX_THINK_MS : 0; }
+    public boolean isDeadlineExceeded() { return deadlineMs > 0 && System.currentTimeMillis() > deadlineMs; }
+    public static long getMaxThinkMs() { return MAX_THINK_MS; }
+
     private final int maxDepth;
     private List<Plan.Decision> currentStack;
     private List<Score> scoreStack;
@@ -57,7 +69,9 @@ public class SimulationController {
     }
 
     public boolean shouldRecurse() {
-        return !GameStateEvaluator.isWinning(bestScore.value) && getRecursionDepth() < maxDepth;
+        // [mtg-local-patches] deadline 超過時は再帰打ち切り。現時点の bestSa で確定させる。
+        return !GameStateEvaluator.isWinning(bestScore.value) && getRecursionDepth() < maxDepth
+                && !isDeadlineExceeded();
     }
 
     public Plan.Decision getLastDecision() {
