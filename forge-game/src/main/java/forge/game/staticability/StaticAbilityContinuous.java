@@ -896,9 +896,15 @@ public final class StaticAbilityContinuous {
                     }
                 }
 
-                Player mayPlayController = params.containsKey("MayPlayPlayer") ?
-                    AbilityUtils.getDefinedPlayers(affectedCard, params.get("MayPlayPlayer"), stAb).get(0) :
-                    controller;
+                // mtg-local-patch: getDefinedPlayers が空を返すと .get(0) で IndexOutOfBounds になり
+                // (探索AI の盤面コピー中に発生) game-thread が死ぬ。空なら controller にフォールバック。
+                Player mayPlayController = controller;
+                if (params.containsKey("MayPlayPlayer")) {
+                    final PlayerCollection mpp = AbilityUtils.getDefinedPlayers(affectedCard, params.get("MayPlayPlayer"), stAb);
+                    if (!mpp.isEmpty()) {
+                        mayPlayController = mpp.get(0);
+                    }
+                }
                 affectedCard.setMayPlay(mayPlayController, mayPlayWithoutManaCost,
                         mayPlayAltCost != null ? new Cost(mayPlayAltCost, false, affectedCard.equals(hostCard)) : null, mayPlayWithFlash,
                         mayPlayGrantZonePermissions, stAb);
