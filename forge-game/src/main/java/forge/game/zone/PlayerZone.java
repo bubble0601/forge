@@ -58,7 +58,8 @@ public class PlayerZone extends Zone {
             // not stored on the card or in the mayPlay map. Check directly.
             if (PlayerZone.this.is(ZoneType.Graveyard) && (c.hasKeyword(Keyword.FLASHBACK)
                     || c.hasKeyword(Keyword.RETRACE) || c.hasKeyword(Keyword.JUMP_START)
-                    || c.hasKeyword(Keyword.ESCAPE) || c.hasKeyword(Keyword.DISTURB))) {
+                    || c.hasKeyword(Keyword.ESCAPE) || c.hasKeyword(Keyword.DISTURB)
+                    || c.hasKeyword(Keyword.HARMONIZE) || c.hasKeyword(Keyword.AFTERMATH))) {
                 return true;
             }
             if (PlayerZone.this.is(ZoneType.Exile) && (c.isForetold() || c.isOnAdventure())) {
