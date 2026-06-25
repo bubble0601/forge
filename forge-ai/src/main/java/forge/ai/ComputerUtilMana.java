@@ -1587,6 +1587,46 @@ public class ComputerUtilMana {
                     tail = tail.getSubAbility();
                 }
 
+                // [mtg-local-patch] TapsForMana trigger による追加マナを色バケツに反映する。
+                // 例: Badgermole Cub "Whenever you tap a creature for mana, add an additional {G}"
+                // 動土地 (平地) は canThisProduce("G")=false なので W バケツにしか入らず、
+                // {G} を含むコストが「払えない」と誤判定される (= APINA が誤って自動 pass)。
+                // 既存の predictManafromSpellAbility 側の TapsForMana ループは
+                // 「マナ源が既に G バケツに入っている前提」の二段階目の量予測であって、
+                // バケツ振り分け段階の漏れは塞げないため、ここで補う。
+                // Reflection 系 (Vorinclex 等) は getReflectableManaColors 経由で
+                // 上の reList ループに既に反映されているのでこの patch では二重に拾わないよう
+                // ApiType.Mana の trigger のみ対象 (ApiType.ManaReflected は除外)。
+                final Map<AbilityKey, Object> tfmParams = AbilityKey.mapFromCard(sourceCard);
+                tfmParams.put(AbilityKey.Activator, ai);
+                tfmParams.put(AbilityKey.AbilityMana, m);
+                final AbilityManaPart tfmMp = m.getManaPart();
+                tfmParams.put(AbilityKey.Produced, tfmMp == null ? "" : tfmMp.getOrigProduced());
+                for (final Trigger tr : game.getTriggerHandler().getActiveTrigger(TriggerType.TapsForMana, tfmParams)) {
+                    final SpellAbility trSA = tr.ensureAbility();
+                    if (trSA == null || !ApiType.Mana.equals(trSA.getApi())) {
+                        continue;
+                    }
+                    String tfmProduced = trSA.getParam("Produced");
+                    if (tfmProduced == null) {
+                        continue;
+                    }
+                    if ("Chosen".equals(tfmProduced)) {
+                        tfmProduced = MagicColor.toShortString(trSA.getHostCard().getChosenColor());
+                    }
+                    for (final String s : tfmProduced.split(" ")) {
+                        if (s.isEmpty()) continue;
+                        if ("C".equals(s)) {
+                            manaMap.put(ManaAtom.COLORLESS, m);
+                        } else {
+                            final byte color = MagicColor.fromName(s);
+                            if (color != 0) {
+                                manaMap.put((int) color, m);
+                            }
+                        }
+                    }
+                }
+
                 if (m.getHostCard().isSnow()) {
                     manaMap.put(ManaAtom.IS_SNOW, m);
                 }
