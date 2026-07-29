@@ -507,7 +507,62 @@ public class CostAdjustment {
         return 0;
     }    
 
+    /**
+     * [mtg-local-patch] Would a target-dependent cost reduction still be able to apply to {@code sa}
+     * once the player picks a target?
+     *
+     * <p>{@code ValidTarget} reductions ("this costs {1} less if it targets a tapped creature",
+     * "... a creature with power 3 or less", "... an attacking creature") are matched against
+     * {@link SpellAbility#getTargets()}, which is empty while a caller is only *predicting* whether
+     * the ability is affordable. Predictive callers therefore see the unreduced cost and can wrongly
+     * conclude the player has nothing to do — {@code AvailableActions} feeds exactly that into the
+     * "auto-pass when no actions" path, silently skipping priority the player could have used.
+     *
+     * <p>This reports whether such a reduction exists <em>and</em> a legal target satisfying it is
+     * available, so predictive callers can fail open only when it actually matters.
+     */
+    public static boolean hasPotentialTargetDependentReduction(final SpellAbility sa) {
+        if (sa == null || sa.isTrigger()) {
+            return false;
+        }
+        final Player activator = sa.getActivatingPlayer();
+        final Card host = sa.getHostCard();
+        if (activator == null || host == null) {
+            return false;
+        }
+        final Game game = activator.getGame();
+        final CardCollection cards = new CardCollection(game.getCardsIn(ZoneType.Battlefield));
+        cards.addAll(game.getCardsIn(ZoneType.Stack));
+        cards.addAll(game.getCardsIn(ZoneType.Command));
+        if (!cards.contains(host)) {
+            cards.add(host);
+        }
+        for (final Card c : cards) {
+            for (final StaticAbility stAb : c.getStaticAbilities()) {
+                if (!stAb.checkMode(StaticAbilityMode.ReduceCost) || !stAb.hasParam("ValidTarget")) {
+                    continue;
+                }
+                // UnlessValidTarget ("costs less unless it targets X") already passes with no
+                // targets chosen, so the normal path is optimistic for those.
+                if (stAb.hasParam("UnlessValidTarget")) {
+                    continue;
+                }
+                if (checkRequirement(sa, stAb, true)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean checkRequirement(final SpellAbility sa, final StaticAbility st) {
+        return checkRequirement(sa, st, false);
+    }
+
+    /** @param assumeBestTarget [mtg-local-patch] when no target is chosen yet, accept the
+     *                          {@code ValidTarget} clause if some legal target would satisfy it. */
+    private static boolean checkRequirement(final SpellAbility sa, final StaticAbility st,
+            final boolean assumeBestTarget) {
         if (!st.checkConditions()) {
             return false;
         }
@@ -599,6 +654,12 @@ public class CostAdjustment {
                 }
                 curSa = curSa.getSubAbility();
             }
+            // [mtg-local-patch] 予測時は対象がまだ選ばれていないので、「その軽減を満たす対象を
+            // 選べるか」で代用する。実際の支払いでは assumeBestTarget=false なので影響しない。
+            if (!targetValid && assumeBestTarget) {
+                targetValid = anyCandidateSatisfies(sa, st.getParam("ValidTarget").split(","),
+                        controller, hostCard);
+            }
             if (st.hasParam("UnlessValidTarget")) {
                 if (targetValid) {
                     return false;
@@ -608,5 +669,23 @@ public class CostAdjustment {
             }
         }
         return true;
+    }
+
+    /** [mtg-local-patch] sa (とその sub) の正当な対象候補に、valid を満たすものがあるか。 */
+    private static boolean anyCandidateSatisfies(final SpellAbility sa, final String[] valid,
+            final Player controller, final Card hostCard) {
+        SpellAbility curSa = sa;
+        while (curSa != null) {
+            if (curSa.usesTargeting() && curSa.getTargetRestrictions() != null
+                    && curSa.getActivatingPlayer() != null) {
+                for (final GameObject candidate : curSa.getTargetRestrictions().getAllCandidates(curSa)) {
+                    if (candidate.isValid(valid, controller, hostCard, curSa)) {
+                        return true;
+                    }
+                }
+            }
+            curSa = curSa.getSubAbility();
+        }
+        return false;
     }
 }

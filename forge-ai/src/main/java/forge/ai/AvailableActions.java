@@ -3,6 +3,7 @@ package forge.ai;
 import forge.game.card.Card;
 import forge.game.card.CardLists;
 import forge.game.card.CardView;
+import forge.game.cost.CostAdjustment;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.zone.ZoneType;
@@ -107,7 +108,15 @@ public final class AvailableActions {
         if (sa.getPayCosts() == null || !sa.getPayCosts().hasManaCost()) {
             return true;
         }
-        return ComputerUtilMana.canPayManaCost(sa, player, 0, false);
+        if (ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
+            return true;
+        }
+        // [mtg-local-patch] Target-dependent reductions ("costs {1} less if it targets a tapped /
+        // attacking / power<=N creature") are matched against the chosen targets, which are empty
+        // during this predictive sweep, so the ability looks unaffordable. That makes APINA skip a
+        // priority the player could have used. Fail open — consistent with the timeout fallback
+        // above, which also prefers a false positive over silently passing.
+        return CostAdjustment.hasPotentialTargetDependentReduction(sa);
     }
 
     private static boolean checkTimeout(long deadlineNanos, long timeoutMs) {
