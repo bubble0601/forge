@@ -23,6 +23,7 @@ import forge.util.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -46,6 +47,10 @@ public final class InputSelectTargets extends InputSyncronizedBase {
 
     public boolean hasCancelled() { return bCancel; }
     public boolean hasPressedOk() { return bOk; }
+
+    /** [mtg-local-patch] 現在までに選ばれた対象。GUI が「もう選んだもの」を盤面で強調するために読む。
+     *  複数対象を取る呪文で、どれを選び終えたのかが分からないという問題への対応。 */
+    public Set<GameEntity> getChosenTargets() { return Collections.unmodifiableSet(targets); }
 
     public InputSelectTargets(final PlayerControllerHuman controller, final List<Card> choices, final SpellAbility sa, final boolean mandatory, Integer numTargets, Collection<Integer> divisionValues, Predicate<GameObject> filter, boolean mustTargetFiltered) {
         super(controller);
