@@ -530,6 +530,17 @@ public class CostAdjustment {
         if (activator == null || host == null) {
             return false;
         }
+        // (0) SA 自身の ReduceCost が「対象に依存する SVar」で決まるケース。
+        // 例: Raft Security Officer は `ReduceCost$ X` + `SVar:X:AllTargeted$Valid Creature.powerLE3`
+        // で「パワー3以下を対象に取るなら {1} 少なくなる」を表す。AllTargeted は現在選ばれている対象を
+        // 数えるので、対象未選択の予測段階では常に 0 = 軽減なしと評価されてしまう。
+        if (sa.hasParam("ReduceCost")) {
+            final String amt = sa.getParamOrDefault("ReduceAmount", sa.getParam("ReduceCost"));
+            final String expanded = sa.getSVar(amt);
+            if (expanded != null && expanded.contains("Targeted")) {
+                return true;
+            }
+        }
         final Game game = activator.getGame();
         final CardCollection cards = new CardCollection(game.getCardsIn(ZoneType.Battlefield));
         cards.addAll(game.getCardsIn(ZoneType.Stack));
