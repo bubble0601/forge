@@ -88,6 +88,15 @@ public class CardTranslation {
     }
 
     private static String translateTokenName(String name) {
+        // [mtg-local-patch] cardnames-<lang>.txt にトークン名の登録があればそれを最優先する。
+        // upstream は lbl<サブタイプ> の合成だけを見ているため、(1) 公式訳とのズレ
+        // (lblClue=ヒント → 「ヒント トークン」/ lblSoldier=兵隊 等)、(2) 訳と「トークン」の間に
+        // 半角スペースが入る不自然な表示、(3) 複合タイプ名 ("Faerie Rogue Token") が英名のまま、
+        // という 3 つの問題が出る。cardnames 側には正式な和名が揃っているのでそちらを使う。
+        String translatedFromCardNames = translatednames.get(name);
+        if (translatedFromCardNames != null && !translatedFromCardNames.isEmpty()) {
+            return translatedFromCardNames;
+        }
         if (translatedTokenNames == null)
             translatedTokenNames = new HashMap<>();
         String ttype = translatedTokenNames.get(name);
