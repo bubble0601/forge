@@ -94,6 +94,10 @@ public enum TrackableProperty {
     GainControlTargets(TrackableTypes.CardViewCollectionType),
     CloneOrigin(TrackableTypes.CardViewType),
     ExiledWith(TrackableTypes.CardViewType),
+    // [mtg-local-patch] このカードが「呪文のコストとして」追放されたか。GUI 側で、効果による
+    // 追放 (Banishing Light / Skyclave Apparition / 鋭い目の管理者 等) と、コスト支払いで
+    // 追放しただけのカード (忌まわしき眼魔 等) を区別して表示するために使う。
+    ExiledByCost(TrackableTypes.BooleanType),
     PreparedSpell(TrackableTypes.CardViewType),
     WasDestroyed(TrackableTypes.BooleanType),
     CrackOverlay(TrackableTypes.IntegerType),

@@ -769,6 +769,16 @@ public class CardView extends GameEntityView {
         return get(TrackableProperty.ExiledWith);
     }
 
+    // [mtg-local-patch] 呪文のコストとして追放されたカードか (= 追放した側の SpellAbility が
+    // 呪文そのもの)。効果で追放して参照し続けるカードと区別したい GUI 向け。
+    public boolean isExiledByCost() {
+        return get(TrackableProperty.ExiledByCost);
+    }
+    void updateExiledByCost(Card c) {
+        final forge.game.spellability.SpellAbility sa = c.getExiledSA();
+        set(TrackableProperty.ExiledByCost, sa != null && sa.isSpell());
+    }
+
     public CardView getPreparedSpell() {
         return get(TrackableProperty.PreparedSpell);
     }

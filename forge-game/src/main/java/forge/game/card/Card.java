@@ -2166,6 +2166,8 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         exiledWith = null;
         exiledBy = null;
         exiledSA = null;
+        // [mtg-local-patch] setExiledSA を経由しない経路なので view 側も明示的に戻す。
+        view.updateExiledByCost(this);
     }
 
     public final Player getExiledBy() { return exiledBy; }
@@ -2176,6 +2178,8 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     public final SpellAbility getExiledSA() { return exiledSA;}
     public final void setExiledSA(final SpellAbility sa) {
         exiledSA = sa;
+        // [mtg-local-patch] 「呪文コストとしての追放か」を view に伝える (GUI の追放カード表示用)。
+        view.updateExiledByCost(this);
     }
 
     public final String getChosenType() {
